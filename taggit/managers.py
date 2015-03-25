@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 from operator import attrgetter
 
+from django.conf import settings
 from django import VERSION
 from django.contrib.contenttypes.models import ContentType
 from django.db import models, router
@@ -83,6 +84,7 @@ class _TaggableManager(models.Manager):
         self.instance = instance
         self.prefetch_cache_name = prefetch_cache_name
         self._db = None
+        self.force_lowercase = getattr(settings, 'TAGGIT_FORCE_LOWERCASE', False)
 
     def is_cached(self, instance):
         return self.prefetch_cache_name in instance._prefetched_objects_cache
@@ -132,6 +134,14 @@ class _TaggableManager(models.Manager):
 
     @require_instance_manager
     def add(self, *tags):
+        if self.force_lowercase:
+            lower_tags = []
+            for t in tags:
+                if not isinstance(t, self.through.tag_model()):
+                    t = t.lower()
+                lower_tags.append(t)
+            tags = lower_tags
+
         str_tags = set()
         tag_objs = set()
         for t in tags:
